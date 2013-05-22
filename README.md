@@ -2,24 +2,41 @@
 
 This project is about taking the geoplanet data provided by Yahoo and the related flick shapes dataset and merging them into a more coherent and usable format.
 
-The problem with the geoplanet data is that it lacks coordinates and is essentially a database dump of several tables. The problem with the flickr shapes is that the data has woe_ids but lacks some of the geoplanet meta data. Additionally the flickr data set is pretty printed geojson, which is kind of annoying when parsing line by line. Finally, the flickr dataset contains polygons that are self intersecting, which is something e.g. Elastic Search (at the time of writing) is unable to deal with.
+Geoplanet was a great project at Yahoo where they built a hierarchical place graph. The flickr shapes project was a side project where the Flickr people tried to cluster geotagged photos and associated them with this graph. The result is a data set of a bit over 200000 polygons for continents, countries, states, cities, localities, neighborhoods, etc. 
 
-This project contains two converters. One converts the flickr geojson into something a bit more usable that also fixes the self intersecting polygons (by turning them into simpler but less accurate convex polygons).
+There are a few problems with both datasets:
 
-The second converter takes the file that comes out of that as well as the three files contained in the geoplanet data set and merges them together.
+The problem with the geoplanet data is that it lacks coordinates and is essentially a database dump of several tables, which is annoying for processing it since you have to do a join of the files somehow.
+
+The problem with the flickr shapes is that the data has woe_ids but lacks some of the geoplanet meta data. Additionally the flickr data set is pretty printed geojson, which is kind of annoying when parsing line by line. Finally, the flickr dataset contains polygons that are self intersecting, which is something e.g. Elastic Search (at the time of writing) is unable to deal with.
+
+This project provides two converters that address these problems.
+
+- FlickrShapeProcessor converts the flickr geojson into something a bit more usable that also fixes the self intersecting polygons (by turning them into simpler but less accurate convex polygons).
+- GeoPlanetConverter takes the file that comes out of that as well as the three files contained in the geoplanet data set and merges those together to produce a gz file with a line of json for each place with all the places, aliases, adjacencies, and if available geojson geometries in one place.
 
 # Data
 
+You can download the input data here.
  - [geoplanet](http://archive.org/search.php?query=geoplanet)
  - [flick shapes 2.0](http://code.flickr.net/2011/01/08/flickr-shapefiles-public-dataset-2-0/)
+
+# Downloading the output
+
+If you want to skip the fun of running the code, I have a [torrent](geoplanet.json.gz.torrent) for the output. The Geoplanet data is creative commons with attribution. The Flickr shapes are creative commons zero waiver (i.e. public domain) licensed. Since this converter generates a derivative product from both, you should attribute *Yahoo Geoplanet* when using the data in this file.
  
-# Using the converter
+# Using the converter yourself
 
-I simply run this straight from eclipse. Make sure to pass -Xmx6000M to the jvm when you run the geoplanet converter. Basically it loads everything in memory and that is quite a bit of data. 6GB should do the trick. You might get away with 5 (though it will spend a lot of time garbage collecting). Less than that and you will likely encounter out of memory issues. The whole thing should take about half an hour (on my macbook).
+First, apologies for the lack of tests. I tested by running the code and it seems to work. That being said, there's room for some improvement.
 
-It's a maven project, so be sure to import it as such and make sure that you follow [my instructions](http://www.jillesvangurp.com/2013/02/27/maven-and-my-github-projects/) for hooking up my private maven repository, which you will need for various dependencies to some of my other projects. Alternatively, check them out manually and mvn clean install them.
+- First import the project in eclipse as a maven project (or whatever IDE you use). It's a maven project, so be sure to import it as such and make sure that you follow [my instructions](http://www.jillesvangurp.com/2013/02/27/maven-and-my-github-projects/) for hooking up my private maven repository, which you will need for various dependencies to some of my other projects. Alternatively, check them out manually and mvn clean install them.
+- Download all the input files (see section above)
+- adapt the hardcoded paths in the source code to your liking (sorry about that)
+- first run the FlickrShapeProcessor
+- fix the path to the file that was created in the previous step in GeoPlanetConverter; make sure the paths to the geoplanet data are also correct
+- run that with -Xmx7000M as a jvm argument (gives you a heap of 7GB). If you don't have enough RAM, I'm sorry but you will run out of memory :-). Basically it creates a gigantic ConcurrentHashMap in memory.
 
-Download all the files, adapt the hardcoded paths in the source code to your liking (sorry about that)
+The whole thing should be over in about 45 minutes. But your mileage may vary. If you are using a laptop, you might want to plug in since this thing will keep your CPU busy for a while.
 
 # Technical
 
@@ -45,8 +62,5 @@ I am considering matching this dataset against geonames to add missing coordinat
 # License
 
 The license is the [MIT license](http://en.wikipedia.org/wiki/MIT_License), a.k.a. the expat license. The rationale for choosing this license is that I want to maximize your freedom to do whatever you want with the code while limiting my liability for the damage this code could potentially do. I do appreciate attribution but not enough to require it in the license (beyond the obligatory copyright notice).
-
-The Geoplanet data is creative commons with attribution. The Flickr shapes are creative commons zero waiver (i.e. public domain) licensed. Since this converter generates a derivative product from both, you should attribute Yahoo Geoplanet when using the resulting data.
-
 
 

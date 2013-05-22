@@ -35,7 +35,6 @@ public class FlickShapeProcessor {
         this.bw = bw;
     }
 
-
     private void process(String file) throws IOException {
 
         BufferedReader br = new BufferedReader(new InputStreamReader(new GZIPInputStream(new FileInputStream(file)),UTF8));
