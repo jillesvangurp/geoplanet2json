@@ -23,7 +23,7 @@ You can download the input data here.
 
 # Downloading the output
 
-If you want to skip the fun of running the code, I have a [torrent](geoplanet.json.gz.torrent) for the output. The Geoplanet data is creative commons with attribution. The Flickr shapes are creative commons zero waiver (i.e. public domain) licensed. Since this converter generates a derivative product from both, you should attribute *Yahoo Geoplanet* when using the data in this file.
+If you want to skip the fun of running the code, I have a [torrent](geoplanet.json.gz.torrent) for the output. Download that or find it in the cloned repository and open it in your favorite torrent app. The Geoplanet data is creative commons with attribution. The Flickr shapes are creative commons zero waiver (i.e. public domain) licensed. Since this converter generates a derivative product from both, you should attribute *Yahoo Geoplanet* when using the data in this file.
  
 # Using the converter yourself
 
@@ -46,7 +46,7 @@ Finally, there's a bit of concurrency as well courtesy of my iterables-support p
 
 # Caveats
 
-- Geoplanet comes without coordinates; flickr shapes only cover a few million of the woeids. The rest are conveniently contained by the flickr shapes though. I may invest some time in correlating the geonames data set with the geoplanet dataset to address this.
+- Geoplanet comes without coordinates; flickr shapes only cover a few hundred thousand of the woeids (out of > 5M). The rest are conveniently contained by the flickr shapes though. I may invest some time in correlating the geonames data set with the geoplanet dataset to address this.
 - Some shapes in the flickr data sets have woeids that are not in the geoplanet data I used.
 - The geoplanet hierarchy contains some inaccuracies. Especially at the neighborhood level there are quite a few inaccuracies.
 - Geoplanet was shut down and is no longer maintained. This dataset is several years out of date. 
