@@ -40,7 +40,7 @@ The whole thing should be over in about 45 minutes. But your mileage may vary. I
 
 # Technical
 
-This project shows off some memory saving strategies I've used in especially jsonj. The reason this takes so much memory is that object references are 64 bit in Java and there are a lot of those references in the concurrent hash map that contains all the flickr places (>5M). I'm saving memory by using jsonj which uses utf8 bytes for strings, caches dictionary keys, and uses a memory efficient map implementation for objects. Without that, you would need a lot more memory.
+This project shows off some memory saving strategies I've used in especially jsonj. The reason this takes so much memory is that object references are 64 bit in Java and there are a lot of those references in the concurrent hash map that contains all the places (>5M). I'm saving memory by using jsonj which uses utf8 bytes for strings, caches dictionary keys, and uses a memory efficient map implementation for objects. Without that, you would need a lot more memory.
 
 Finally, there's a bit of concurrency as well courtesy of my iterables-support project. Basically, the converters iterate over files concurrently with 8 threads, which assuming you have four cores or 8 hyperthreaded cores) should keep your computer busy.
 
