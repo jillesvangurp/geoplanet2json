@@ -55,7 +55,7 @@ Finally, there's a bit of concurrency as well courtesy of my iterables-support p
 
 # Future plans
 
-We are building a location graph at Localstream using various sources of data, including this one. We eventually open up our dataset. However, currently our focus is on building our service. 
+We are building a location graph at Localstream using various sources of data, including this one. We may eventually open up some of our dataset. However, currently our focus is on building our service. 
 
 I am considering matching this dataset against geonames to add missing coordinates and to further enrich the data. 
 
