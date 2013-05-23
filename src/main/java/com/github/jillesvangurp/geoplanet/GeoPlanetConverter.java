@@ -1,11 +1,13 @@
 package com.github.jillesvangurp.geoplanet;
 
+import static com.github.jsonj.tools.JsonBuilder.array;
 import static com.github.jsonj.tools.JsonBuilder.object;
 import static com.github.jsonj.tools.JsonBuilder.primitive;
 import static com.jillesvangurp.iterables.Iterables.processConcurrently;
 import static com.jillesvangurp.iterables.Iterables.toIterable;
 
 import java.io.BufferedWriter;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -16,6 +18,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.zip.GZIPOutputStream;
 
 import org.apache.commons.lang.StringUtils;
@@ -35,11 +39,34 @@ import com.jillesvangurp.iterables.Processor;
  * Warning, this requires a bit of memory. I typically run it with 6GB of heap (java -Xmx6000M). I expect you would run out of memory with anything less than 5GB.
  */
 public class GeoPlanetConverter {
+
+    // misc strings used in the json
+    private static final String COUNTRY = "country";
+    private static final String LANGUAGE = "language";
+    private static final String YAHOO_NAME = "Name";
+    private static final String YAHOO_LANGUAGE = "Language";
+    private static final String WOE_ID = "WOE_ID";
+    private static final String NAME = "name";
+    private static final String NEIGHBOR_WOEIDS = "neighbor_woeids";
+    private static final String IDS = "ids";
+    private static final String GEOMETRY = "geometry";
+    private static final String ID = "id";
+    private static final String NEIGHBOR_IDS = "neighborIds";
+    private static final String YAHOO_PARENT_ID = "Parent_ID";
+    private static final String CATEGORIES = "categories";
+    private static final String PLACE_TYPE = "PlaceType";
+    private static final String PARENT_ID = "parentId";
+    private static final String TITLE = "title";
+
+    private static final JsonParser PARSER = new JsonParser();
+
+    // misc files used in this file
+    private static final String OUTPUT_FILE = "geoplanet.json.gz";
     private static final Charset UTF8 = Charset.forName("UTF-8");
-    public static final String adjacencies="/Users/jilles/data/geoplanet/geoplanet_adjacencies_7.10.0.tsv.gz";
-    public static final String aliases="/Users/jilles/data/geoplanet/geoplanet_aliases_7.10.0.tsv.gz";
-    public static final String places="/Users/jilles/data/geoplanet/geoplanet_places_7.10.0.tsv.gz";
-    public static final String flickrShapes="/Users/jilles/data/output/flickr-shapes/flickr-shapes-20130511105122.json.gz";
+    private static final String adjacencies="/Users/jilles/data/geoplanet/geoplanet_adjacencies_7.10.0.tsv.gz";
+    private static final String aliases="/Users/jilles/data/geoplanet/geoplanet_aliases_7.10.0.tsv.gz";
+    private static final String places="/Users/jilles/data/geoplanet/geoplanet_places_7.10.0.tsv.gz";
+    private static final String flickrShapes="/Users/jilles/data/output/flickr-shapes/flickr-shapes-20130511105122.json.gz";
 
     private void convert() {
         try {
@@ -48,12 +75,7 @@ public class GeoPlanetConverter {
             addAliases(geoplanetPlaces);
             addAdjacencies(geoplanetPlaces);
             addGeometry(geoplanetPlaces);
-            System.out.println("serializing places to file");
-            try(BufferedWriter bw = new BufferedWriter(new OutputStreamWriter(new GZIPOutputStream(new FileOutputStream("geoplanet.json.gz")), UTF8))) {
-                for(Entry<String, JsonObject> e: geoplanetPlaces.entrySet()) {
-                    bw.write(e.getValue().toString() + '\n');
-                }
-            }
+            serialize(geoplanetPlaces);
             System.out.println("done");
 
         } catch (IOException e) {
@@ -61,9 +83,17 @@ public class GeoPlanetConverter {
         }
     }
 
+    private void serialize(final Map<String, JsonObject> geoplanetPlaces) throws IOException, FileNotFoundException {
+        System.out.println("serializing places to file");
+        try(BufferedWriter bw = gzipFileWriter(OUTPUT_FILE)) {
+            for(Entry<String, JsonObject> e: geoplanetPlaces.entrySet()) {
+                bw.write(e.getValue().toString() + '\n');
+            }
+        }
+    }
+
     private void addGeometry(final Map<String, JsonObject> geoplanetPlaces) throws IOException {
         System.out.println("adding geometries");
-        final JsonParser parser = new JsonParser();
         final AtomicInteger brokenrefs = new AtomicInteger();
         try(LineIterable it=LineIterable.openGzipFile(flickrShapes)) {
             Processor<String, Boolean> processor = new Processor<String, Boolean>() {
@@ -76,13 +106,13 @@ public class GeoPlanetConverter {
                             input=input.substring(sep+1);
                         }
 
-                        JsonObject object = parser.parse(input).asObject();
-                        JsonArray ids = object.getArray("ids");
+                        JsonObject object = PARSER.parse(input).asObject();
+                        JsonArray ids = object.getArray(IDS);
                         String woeid = ids.get(0).asString();
                         JsonObject place = geoplanetPlaces.get(woeid);
                         if(place != null) {
-                            JsonObject geometry = object.getObject("geometry");
-                            place.put("geometry", geometry);
+                            JsonObject geometry = object.getObject(GEOMETRY);
+                            place.put(GEOMETRY, geometry);
                         } else {
                             brokenrefs.incrementAndGet();
                             System.out.println(object);
@@ -97,19 +127,6 @@ public class GeoPlanetConverter {
             process(it,processor,"geometries");
             System.out.println("there are " + brokenrefs.get() + " flickr woeids without a match to geoplanet");
         }
-    }
-
-    private void process(Iterable<String> it, Processor<String,Boolean> processor, String what) throws IOException {
-        final AtomicInteger lines=new AtomicInteger();
-        try(ConcurrentProcessingIterable<String, Boolean> concurrentProcessor = processConcurrently(it, processor , 10000, 9, 10000)) {
-            for(@SuppressWarnings("unused") Boolean b:concurrentProcessor) {
-                lines.incrementAndGet();
-                if(lines.get()%100000 == 0) {
-                    System.out.println("processed " + lines + " " + what);
-                }
-            }
-        }
-        System.out.println("done adding " + what);
     }
 
     private void addAdjacencies(final Map<String, JsonObject> geoplanetPlaces) throws IOException {
@@ -138,13 +155,13 @@ public class GeoPlanetConverter {
                     JsonObject place2 = geoplanetPlaces.get(woeid2);
                     if(place1 != null && place2 != null) {
                         synchronized(place1) {
-                            JsonArray array1 = place1.getOrCreateArray("neigbor_woeids");
+                            JsonArray array1 = place1.getOrCreateArray(NEIGHBOR_WOEIDS);
                             if(!array1.contains(woeid2)) {
                                 array1.add(woeid2);
                             }
                         }
                         synchronized(place2) {
-                            JsonArray array2 = place2.getOrCreateArray("neigbor_woeids");
+                            JsonArray array2 = place2.getOrCreateArray(NEIGHBOR_WOEIDS);
                             if(!array2.contains(woeid1)) {
                                 array2.add(woeid1);
                             }
@@ -186,16 +203,28 @@ public class GeoPlanetConverter {
                         }
                         i++;
                     }
-                    String woeid = object.getString("WOE_ID");
-                    String lang = object.getString("Language");
-                    String name = object.getString("Name");
+                    String woeid = object.getString(WOE_ID);
+                    String lang = object.getString(YAHOO_LANGUAGE);
+                    String name = object.getString(YAHOO_NAME);
+                    String nameType = object.getString("Name_Type");
                     JsonObject place = geoplanetPlaces.get(woeid);
                     if(place != null) {
                         synchronized(place) {
-                            JsonArray languageValues = place.getOrCreateArray("name",lang);
+                            JsonArray languageValues = place.getOrCreateArray(NAME,lang);
                             JsonPrimitive namePrimitive = primitive(name);
                             if(!languageValues.contains(namePrimitive)) {
-                                languageValues.add(namePrimitive);
+                                // make sure preferred names are at start of the list of alternatives
+                                switch (nameType.toUpperCase()) {
+                                case "P":
+                                    languageValues.add(0, namePrimitive);
+                                    break;
+                                case "Q":
+                                    languageValues.add(0, namePrimitive);
+                                    break;
+                                default:
+                                    languageValues.add(namePrimitive);
+                                    break;
+                                }
                             }
                         }
                     }
@@ -245,8 +274,112 @@ public class GeoPlanetConverter {
         return fields;
     }
 
+
+    /**
+     * Takes the output of convert and applies some cleanup; also gets the json in the preferred format for Localstream.
+     * Separate class so that the garbage collector can get rid of the huge map.
+     */
+    static class PostProcess {
+
+        private final Lock lock=new ReentrantLock();
+
+        public void cleanup() {
+            try(LineIterable it=LineIterable.openGzipFile(OUTPUT_FILE)) {
+                try(BufferedWriter bw=gzipFileWriter("geoplanet_cleaned-"+System.currentTimeMillis()+".json.gz")) {
+                    Processor<String, Boolean> processor = new Processor<String, Boolean>() {
+
+                        @Override
+                        public Boolean process(String input) {
+                            try {
+                                JsonObject place = PARSER.parse(input).asObject();
+
+                                JsonObject result = object()
+                                        .put(ID, place.get(WOE_ID))
+                                        .put(NAME, fixNames(place))
+                                        .put(TITLE, place.getString(TITLE))
+                                        .put(CATEGORIES, fixCategories(place))
+                                        .put(PARENT_ID, place.getString(YAHOO_PARENT_ID))
+                                        .put(COUNTRY, place.getString("ISO"))
+                                        .put(NEIGHBOR_IDS, place.getArray(NEIGHBOR_WOEIDS))
+                                        .put(GEOMETRY, place.getArray(GEOMETRY))
+                                        .get();
+                                write(bw, result);
+                                return true;
+                            } catch (IOException e) {
+                                throw new IllegalStateException(e);
+                            }
+                        }
+
+                        private JsonObject fixCategories(JsonObject place) {
+                            String geoPlanetCategory = place.getString(PLACE_TYPE);
+
+                            return object().put("geoplanet", array(geoPlanetCategory)).get();
+                        }
+
+                        private JsonObject fixNames(JsonObject place) {
+                            JsonObject names = place.getOrCreateObject(NAME);
+                            String yahooName = place.getString(YAHOO_NAME);
+                            String language = place.getString(YAHOO_LANGUAGE);
+                            if(StringUtils.isNotEmpty(language)) {
+                                JsonArray languageValues = names.getOrCreateArray(language);
+                                if(!languageValues.contains(yahooName)) {
+                                    languageValues.add(yahooName);
+                                }
+                                // make sure we give special status for the preferred Yahoo Name
+                                place.put(TITLE, yahooName);
+                                place.put(LANGUAGE, language);
+                            } else {
+                                if(StringUtils.isNotEmpty(yahooName)) {
+                                    // fall back to english
+                                    JsonArray languageValues = names.getOrCreateArray("ENG");
+                                    if(!languageValues.contains(yahooName)) {
+                                        languageValues.add(yahooName);
+                                    }
+                                    place.put(TITLE, yahooName);
+                                }
+                            }
+                            return names;
+                        }
+
+                    };
+                    process(it, processor, "for cleanup");
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        private void write(BufferedWriter bw, JsonObject object) throws IOException {
+            lock.lock();
+            try {
+                bw.write(object.toString() + '\n');
+            } finally {
+                lock.unlock();
+            }
+
+        }
+    }
+
+    private static BufferedWriter gzipFileWriter(String file) throws IOException, FileNotFoundException {
+        return new BufferedWriter(new OutputStreamWriter(new GZIPOutputStream(new FileOutputStream(file)), UTF8));
+    }
+
+    private static void process(Iterable<String> it, Processor<String,Boolean> processor, String what) throws IOException {
+        final AtomicInteger lines=new AtomicInteger();
+        try(ConcurrentProcessingIterable<String, Boolean> concurrentProcessor = processConcurrently(it, processor , 10000, 9, 10000)) {
+            for(@SuppressWarnings("unused") Boolean b:concurrentProcessor) {
+                lines.incrementAndGet();
+                if(lines.get()%100000 == 0) {
+                    System.out.println("processed " + lines + " " + what);
+                }
+            }
+        }
+        System.out.println("done adding " + what);
+    }
+
     public static void main(String[] args) {
         new GeoPlanetConverter().convert();
+        new PostProcess().cleanup();
     }
 
 
