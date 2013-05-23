@@ -28,6 +28,7 @@ import com.github.jsonj.JsonArray;
 import com.github.jsonj.JsonObject;
 import com.github.jsonj.JsonPrimitive;
 import com.github.jsonj.tools.JsonParser;
+import com.github.jsonj.tools.JsonSerializer;
 import com.google.common.base.Splitter;
 import com.jillesvangurp.iterables.ConcurrentProcessingIterable;
 import com.jillesvangurp.iterables.LineIterable;
@@ -41,22 +42,23 @@ import com.jillesvangurp.iterables.Processor;
 public class GeoPlanetConverter {
 
     // misc strings used in the json
+    private static final String CATEGORIES = "categories";
     private static final String COUNTRY = "country";
-    private static final String LANGUAGE = "language";
-    private static final String YAHOO_NAME = "Name";
-    private static final String YAHOO_LANGUAGE = "Language";
-    private static final String WOE_ID = "WOE_ID";
-    private static final String NAME = "name";
-    private static final String NEIGHBOR_WOEIDS = "neighbor_woeids";
-    private static final String IDS = "ids";
     private static final String GEOMETRY = "geometry";
     private static final String ID = "id";
+    private static final String IDS = "ids";
+    private static final String LANGUAGE = "language";
+    private static final String NAME = "name";
     private static final String NEIGHBOR_IDS = "neighborIds";
-    private static final String YAHOO_PARENT_ID = "Parent_ID";
-    private static final String CATEGORIES = "categories";
-    private static final String PLACE_TYPE = "PlaceType";
+    private static final String NEIGHBOR_WOEIDS = "neighbor_woeids";
     private static final String PARENT_ID = "parentId";
+    private static final String PLACE_TYPE = "PlaceType";
+    private static final String SOURCE = "source";
     private static final String TITLE = "title";
+    private static final String WOE_ID = "WOE_ID";
+    private static final String YAHOO_LANGUAGE = "Language";
+    private static final String YAHOO_NAME = "Name";
+    private static final String YAHOO_PARENT_ID = "Parent_ID";
 
     private static final JsonParser PARSER = new JsonParser();
 
@@ -87,7 +89,8 @@ public class GeoPlanetConverter {
         System.out.println("serializing places to file");
         try(BufferedWriter bw = gzipFileWriter(OUTPUT_FILE)) {
             for(Entry<String, JsonObject> e: geoplanetPlaces.entrySet()) {
-                bw.write(e.getValue().toString() + '\n');
+                JsonSerializer.write(bw, e.getValue(), false);
+                bw.newLine();
             }
         }
     }
@@ -293,16 +296,38 @@ public class GeoPlanetConverter {
                             try {
                                 JsonObject place = PARSER.parse(input).asObject();
 
-                                JsonObject result = object()
-                                        .put(ID, place.get(WOE_ID))
-                                        .put(NAME, fixNames(place))
-                                        .put(TITLE, place.getString(TITLE))
-                                        .put(CATEGORIES, fixCategories(place))
-                                        .put(PARENT_ID, place.getString(YAHOO_PARENT_ID))
-                                        .put(COUNTRY, place.getString("ISO"))
-                                        .put(NEIGHBOR_IDS, place.getArray(NEIGHBOR_WOEIDS))
-                                        .put(GEOMETRY, place.getArray(GEOMETRY))
-                                        .get();
+                                JsonObject result = object().get();
+
+                                result.put(ID, place.get(WOE_ID));
+                                result.put(SOURCE, "geoplanet");
+                                JsonObject names = fixNames(place);
+                                if (names != null) {
+                                    result.put(NAME, names);
+                                }
+                                String title = place.getString(TITLE);
+                                if (title != null) {
+                                    result.put(TITLE, title);
+                                }
+                                JsonObject cats = fixCategories(place);
+                                if (cats != null) {
+                                    result.put(CATEGORIES, cats);
+                                }
+                                String parent = place.getString(YAHOO_PARENT_ID);
+                                if (parent != null) {
+                                    result.put(PARENT_ID, parent);
+                                }
+                                String country = place.getString("ISO");
+                                if (country != null) {
+                                    result.put(COUNTRY, country);
+                                }
+                                JsonArray neighbors = place.getArray(NEIGHBOR_WOEIDS);
+                                if (neighbors != null) {
+                                    result.put(NEIGHBOR_IDS, neighbors);
+                                }
+                                JsonObject geometry = place.getObject(GEOMETRY);
+                                if (geometry != null) {
+                                    result.put(GEOMETRY, geometry);
+                                }
                                 write(bw, result);
                                 return true;
                             } catch (IOException e) {
@@ -352,16 +377,16 @@ public class GeoPlanetConverter {
         private void write(BufferedWriter bw, JsonObject object) throws IOException {
             lock.lock();
             try {
-                bw.write(object.toString() + '\n');
+                JsonSerializer.write(bw, object, false);
+                bw.newLine();
             } finally {
                 lock.unlock();
             }
-
         }
     }
 
     private static BufferedWriter gzipFileWriter(String file) throws IOException, FileNotFoundException {
-        return new BufferedWriter(new OutputStreamWriter(new GZIPOutputStream(new FileOutputStream(file)), UTF8));
+        return new BufferedWriter(new OutputStreamWriter(new GZIPOutputStream(new FileOutputStream(file)), UTF8),1000000);
     }
 
     private static void process(Iterable<String> it, Processor<String,Boolean> processor, String what) throws IOException {
@@ -381,6 +406,4 @@ public class GeoPlanetConverter {
         new GeoPlanetConverter().convert();
         new PostProcess().cleanup();
     }
-
-
 }
