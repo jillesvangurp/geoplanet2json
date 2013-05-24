@@ -21,9 +21,9 @@ You can download the input data here.
  - [geoplanet](http://archive.org/search.php?query=geoplanet)
  - [flick shapes 2.0](http://code.flickr.net/2011/01/08/flickr-shapefiles-public-dataset-2-0/)
 
-# Downloading the output
+# Downloading the latest output
 
-If you want to skip the fun of running the code, I have a [torrent](geoplanet.json.gz.torrent) for the output. Download that or find it in the cloned repository and open it in your favorite torrent app. The Geoplanet data is creative commons with attribution. The Flickr shapes are creative commons zero waiver (i.e. public domain) licensed. Since this converter generates a derivative product from both, you should attribute *Yahoo Geoplanet* when using the data in this file.
+If you want to skip the fun of running the code, I have a [torrent](geoplanet_cleaned-1369385861700.json.gz.torrent) for the output. Download that or find it in the cloned repository and open it in your favorite torrent app. The Geoplanet data is creative commons with attribution. The Flickr shapes are creative commons zero waiver (i.e. public domain) licensed. Since this converter generates a derivative product from both, you should attribute *Yahoo Geoplanet* when using the data in this file.
  
 # Using the converter yourself
 
