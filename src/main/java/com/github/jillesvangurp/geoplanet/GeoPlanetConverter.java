@@ -268,12 +268,11 @@ public class GeoPlanetConverter {
 
     private ArrayList<String> readFields(Iterator<String> iterator) {
         String first = iterator.next();
-        final ArrayList<String> fields1=new ArrayList<>();
+        final ArrayList<String> fields=new ArrayList<>();
         for(String fieldName: Splitter.on('\t').split(first)) {
             fieldName=deqoute(fieldName);
-            fields1.add(fieldName);
+            fields.add(fieldName);
         }
-        final ArrayList<String> fields = fields1;
         return fields;
     }
 
