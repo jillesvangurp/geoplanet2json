@@ -27,7 +27,7 @@
     <artifactId>geoplanet2geojson</artifactId>
     <version>1.0-SNAPSHOT</version>
 
-    <name>osm2geojson</name>
+    <name>geoplanet2geojson</name>
     <description>Tool to convert geoplanet + flickr shapes data to geojson</description>
     <url>https://jillesvangurp.com</url>
 
